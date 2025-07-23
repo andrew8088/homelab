@@ -1,0 +1,16 @@
+# Create apps/automation/homeassistant/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homeassistant-config
+  namespace: automation
+data:
+  configuration.yaml: |
+    default_config:
+    
+    http:
+      use_x_forwarded_for: true
+      trusted_proxies:
+        - 10.42.0.0/16    # Your pod CIDR (adjust if different)
+        - 10.43.0.0/16    # Your service CIDR
+        - 192.168.0.0/24  # Your node network

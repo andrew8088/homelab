@@ -25,13 +25,18 @@ spec:
         - containerPort: 8123
         env:
         - name: TZ
-          value: "America/Toronto"  # Adjust for your timezone
+          value: "America/Toronto"
+        - name: HASS_HTTP_REVERSE_PROXY
+          value: "true"
         volumeMounts:
         - name: config
           mountPath: /config
         - name: localtime
           mountPath: /etc/localtime
           readOnly: true
+        - name: ha-config
+          mountPath: /config/configuration.yaml
+          subPath: configuration.yaml
         resources:
           requests:
             memory: "512Mi"
@@ -46,3 +51,6 @@ spec:
       - name: localtime
         hostPath:
           path: /etc/localtime
+      - name: ha-config
+        configMap:
+          name: homeassistant-config
