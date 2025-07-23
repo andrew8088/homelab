@@ -17,7 +17,7 @@ spec:
       labels:
         app: homeassistant
     spec:
-      hostNetwork: true  # HA needs host network for device discovery
+      # hostNetwork: true  # HA needs host network for device discovery
       containers:
       - name: homeassistant
         image: ghcr.io/home-assistant/home-assistant:stable

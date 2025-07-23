@@ -5,7 +5,7 @@ setup:
 	./scripts/create-secrets.sh
 
 deploy:
-	kubectl apply -f apps/
+	kubectl apply -R -f apps
 
 clean:
 	kubectl delete -f apps/ || true
