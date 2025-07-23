@@ -6,7 +6,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-  - host: ha.local
+  - host: ha.internal
     http:
       paths:
       - path: /
