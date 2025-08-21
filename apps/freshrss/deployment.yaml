@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: freshrss
+  namespace: freshrss
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: freshrss
+  template:
+    metadata:
+      labels:
+        app: freshrss
+    spec:
+      containers:
+      - name: freshrss
+        image: freshrss/freshrss:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: CRON_MIN
+          value: "1,31"
+        volumeMounts:
+        - name: data
+          mountPath: /var/www/FreshRSS/data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: freshrss-data
