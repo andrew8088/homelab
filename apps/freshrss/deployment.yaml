@@ -2,13 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: freshrss
-  namespace: productivity
-  labels:
-    app: freshrss
+  namespace: apps
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: freshrss
@@ -23,10 +19,10 @@ spec:
         ports:
         - containerPort: 80
         env:
-        - name: TZ
-          value: "America/Toronto"
         - name: CRON_MIN
-          value: "*/15"
+          value: "13,43"
+        - name: TZ
+          value: "America/Toronto"  # Adjust for your timezone
         volumeMounts:
         - name: data
           mountPath: /var/www/FreshRSS/data
@@ -44,5 +40,4 @@ spec:
         persistentVolumeClaim:
           claimName: freshrss-data
       - name: extensions
-        persistentVolumeClaim:
-          claimName: freshrss-extensions
+        emptyDir: {}

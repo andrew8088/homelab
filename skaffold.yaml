@@ -1,0 +1,25 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: homelab-services
+
+# No custom builds needed - using official images
+build:
+  artifacts: []
+
+manifests:
+  rawYaml:
+  - base/*.yaml
+  - apps/freshrss/*.yaml
+
+deploy:
+  kubectl: {}
+
+profiles:
+- name: local
+  deploy:
+    kubeContext: k3d-homelab-local
+    
+- name: homelab
+  deploy:
+    kubeContext: homelab-k3s

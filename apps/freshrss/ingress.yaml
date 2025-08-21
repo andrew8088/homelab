@@ -1,18 +1,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: homeassistant
-  namespace: automation
+  name: freshrss
+  namespace: apps
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  ingressClassName: traefik
   rules:
-  - host: ha.internal
+  - host: freshrss.localhost
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: homeassistant
+            name: freshrss
             port:
-              number: 8123
+              number: 80
