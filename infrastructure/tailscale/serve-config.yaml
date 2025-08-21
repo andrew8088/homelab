@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: serve-config
+  namespace: tailscale
+data:
+  serve.json: |
+    {
+      "TCP": {
+        "443": {
+          "HTTPS": true
+        },
+        "80": {
+          "HTTP": true
+        }
+      },
+      "Web": {
+        "freshrss.twin-barley.ts.net:443": {
+          "Handlers": {
+            "/": {
+              "Proxy": "http://freshrss.freshrss.svc.cluster.local"
+            }
+          }
+        },
+        "freshrss.twin-barley.ts.net:80": {
+          "Handlers": {
+            "/": {
+              "Proxy": "http://freshrss.freshrss.svc.cluster.local"
+            }
+          }
+        }
+      }
+    }
