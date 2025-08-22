@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tailscale
+  namespace: nextcloud
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: nextcloud
+  name: tailscale-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tailscale-rolebinding
+  namespace: nextcloud
+subjects:
+- kind: ServiceAccount
+  name: tailscale
+  namespace: nextcloud
+roleRef:
+  kind: Role
+  name: tailscale-role
+  apiGroup: rbac.authorization.k8s.io
