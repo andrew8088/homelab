@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maybe-app-storage
+  namespace: maybe
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-primary
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maybe-postgres-data
+  namespace: maybe
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-primary
+  resources:
+    requests:
+      storage: 5Gi
