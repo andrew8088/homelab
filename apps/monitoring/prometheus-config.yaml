@@ -40,6 +40,11 @@ data:
     - job_name: 'kube-state-metrics'
       static_configs:
       - targets: ['kube-state-metrics:8080']
+      
+    # cAdvisor DaemonSet - Container resource usage
+    - job_name: 'cadvisor'
+      static_configs:
+      - targets: ['cadvisor:8080']
         
     # Discover services with prometheus scrape annotations
     - job_name: 'kubernetes-service-endpoints'
