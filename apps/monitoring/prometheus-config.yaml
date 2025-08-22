@@ -1,0 +1,68 @@
+# apps/monitoring/prometheus-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      
+    scrape_configs:
+    # Node Exporter - Host level metrics from your Ubuntu VM
+    - job_name: 'node-exporter'
+      static_configs:
+      - targets: ['node-exporter:9100']
+      
+    # Kubernetes API server metrics
+    - job_name: 'kube-apiserver'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - default
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: kubernetes;https
+        
+    # Container metrics via kube-state-metrics approach
+    # We'll add kube-state-metrics in the next update for proper container visibility
+    
+    # Kube-state-metrics - Kubernetes object metrics
+    - job_name: 'kube-state-metrics'
+      static_configs:
+      - targets: ['kube-state-metrics:8080']
+        
+    # Discover services with prometheus scrape annotations
+    - job_name: 'kubernetes-service-endpoints'
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: kubernetes_name

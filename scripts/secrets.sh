@@ -5,6 +5,7 @@ op item list --vault homelab | sed '1d' | awk '{print $2}' | while read title; d
   echo $content | jq -r '.tags[]' | while read namespace; do
     literals=$(echo $content | jq -r '.fields[] | select(.id!="notesPlain") | "--from-literal=\(.label)=\(.value)"')
     
+    kubectl delete secret $title -n "$namespace" --ignore-not-found
     kubectl create secret generic $title \
       --namespace="$namespace" \
       $literals

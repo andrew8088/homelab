@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: tailscale
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.54.1
+        args:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--storage.tsdb.retention.time=30d'
+        - '--storage.tsdb.retention.size=45GB'
+        - '--web.console.libraries=/etc/prometheus/console_libraries'
+        - '--web.console.templates=/etc/prometheus/consoles'
+        - '--web.enable-lifecycle'
+        - '--web.route-prefix=/'
+        - '--web.external-url=https://prometheus.twin-barley.ts.net'
+        ports:
+        - containerPort: 9090
+          name: web
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 200m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus
+        - name: prometheus-storage
+          mountPath: /prometheus
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          
+      # Tailscale sidecar for remote access
+      - name: tailscale
+        image: tailscale/tailscale:latest
+        env:
+        - name: TS_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              name: tailscale-auth
+              key: TS_AUTHKEY
+        - name: TS_HOSTNAME
+          value: "prometheus"
+        - name: TS_SERVE_CONFIG
+          value: "/config/serve.json"
+        - name: TS_STATE_DIR
+          value: /tmp
+        - name: TS_USERSPACE
+          value: "true"
+        - name: TS_KUBE_SECRET
+          value: "tailscale-state"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 50m
+          limits:
+            memory: 128Mi
+            cpu: 100m
+        volumeMounts:
+        - name: serve-config
+          mountPath: /config
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prometheus-storage
+        persistentVolumeClaim:
+          claimName: prometheus-storage
+      - name: serve-config
+        configMap:
+          name: prometheus-serve-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  selector:
+    app: prometheus
