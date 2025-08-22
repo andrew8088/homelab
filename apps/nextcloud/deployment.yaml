@@ -68,8 +68,7 @@ spec:
             memory: 4Gi
             cpu: 1000m
         readinessProbe:
-          httpGet:
-            path: /status.php
+          tcpSocket:
             port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
