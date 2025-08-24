@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana
+  namespace: grafana
+
+---
+# Tailscale permissions for grafana ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: grafana
+  name: grafana-tailscale
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "get", "list", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["tailscale-state"]
+  verbs: ["get", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grafana-tailscale
+  namespace: grafana
+subjects:
+- kind: ServiceAccount
+  name: grafana
+  namespace: grafana
+roleRef:
+  kind: Role
+  name: grafana-tailscale
+  apiGroup: rbac.authorization.k8s.io
