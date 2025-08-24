@@ -22,6 +22,11 @@ rules:
   resources:
   - configmaps
   verbs: ["get"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
 - nonResourceURLs: ["/metrics"]
   verbs: ["get"]
 
@@ -40,12 +45,35 @@ subjects:
   namespace: monitoring
 
 ---
-# Tailscale RBAC (for remote access to Prometheus)
-apiVersion: v1
-kind: ServiceAccount
+# Tailscale permissions for prometheus ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
 metadata:
-  name: tailscale
   namespace: monitoring
+  name: prometheus-tailscale
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "get", "list", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["tailscale-state"]
+  verbs: ["get", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-tailscale
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: prometheus-tailscale
+  apiGroup: rbac.authorization.k8s.io
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
