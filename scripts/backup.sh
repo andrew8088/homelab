@@ -2,7 +2,17 @@
 
 set -euo pipefail
 
-BACKUP_BASE="/mnt/backup"
+# Accept BACKUP_BASE as first argument, default to /mnt/backup
+BACKUP_BASE="${1:-/mnt/backup}"
+
+# Show usage if help requested
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: $0 [BACKUP_BASE]"
+    echo "  BACKUP_BASE: Directory where backups will be stored (default: /mnt/backup)"
+    echo "  Example: $0 /mnt/external-drive/backups"
+    exit 0
+fi
+
 LOGFILE="/var/log/homelab-backup.log"
 LOCK_FILE="/var/run/homelab-backup.lock"
 RETENTION_DAYS=7
