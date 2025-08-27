@@ -60,8 +60,9 @@ spec:
           periodSeconds: 5
       volumes:
       - name: postgres-data
-        persistentVolumeClaim:
-          claimName: maybe-postgres-data
+        hostPath:
+          path: /mnt/primary/k3s-storage/maybe-postgres
+          type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service

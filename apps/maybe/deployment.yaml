@@ -158,8 +158,9 @@ spec:
             cpu: "100m"
       volumes:
       - name: app-storage
-        persistentVolumeClaim:
-          claimName: maybe-app-storage
+        hostPath:
+          path: /mnt/primary/k3s-storage/maybe-data
+          type: DirectoryOrCreate
       - name: serve-config
         configMap:
           name: tailscale-serve-config
