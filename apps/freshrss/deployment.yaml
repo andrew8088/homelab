@@ -73,8 +73,9 @@ spec:
             cpu: "100m"
       volumes:
       - name: data
-        persistentVolumeClaim:
-          claimName: freshrss-data
+        hostPath:
+          path: /mnt/primary/k3s-storage/freshrss-data
+          type: DirectoryOrCreate
       - name: serve-config
         configMap:
           name: tailscale-serve-config

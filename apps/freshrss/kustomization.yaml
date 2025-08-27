@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
 - namespace.yaml
+- secrets.yaml
 - rbac.yaml
-- pvc.yaml
 - serve-config.yaml
 - deployment.yaml
