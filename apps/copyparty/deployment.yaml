@@ -32,6 +32,10 @@ spec:
         volumeMounts:
         - name: nextcloud-userdata
           mountPath: /w
+        - name: cluster-backup
+          mountPath: /backup
+        - name: cluster-external
+          mountPath: /external
         - name: config
           mountPath: /cfg
         - name: copyparty-config
@@ -118,9 +122,18 @@ spec:
         hostPath:
           path: /mnt/primary/k3s-storage/nextcloud-userdata/andrew/files
           type: Directory
+      - name: cluster-backup
+        hostPath:
+          path: /mnt/backup
+          type: Directory
+      - name: cluster-external
+        hostPath:
+          path: /mnt/external
+          type: Directory
       - name: config
-        persistentVolumeClaim:
-          claimName: copyparty-config
+        hostPath:
+          path: /mnt/primary/k3s-storage/copyparty-config
+          type: Directory
       - name: copyparty-config
         configMap:
           name: copyparty-config

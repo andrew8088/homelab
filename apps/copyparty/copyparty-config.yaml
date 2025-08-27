@@ -18,7 +18,17 @@ data:
       
       hist: /cfg/hists/
     
-    [/]
+    [/home]
       /w
+      accs: 
+        rwda: andrew
+
+    [/backup]
+      /backup
+      accs: 
+        rwda: andrew
+
+    [/external]
+      /external
       accs: 
         rwda: andrew
