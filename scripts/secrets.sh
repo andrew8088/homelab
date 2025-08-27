@@ -1,5 +1,13 @@
 #!/bin/sh
 
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <namespace>"
+    echo "Deploy secrets to the specified namespace only"
+    exit 1
+fi
+
+TARGET_NAMESPACE="$1"
+
 iso_to_epoch() {
     date -d "$1" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "$1" +%s 2>/dev/null
 }
@@ -63,8 +71,7 @@ op item list --vault homelab | sed '1d' | awk '{print $2}' | while read title; d
     fi
     
     echo "$tags" | while read namespace; do
-        if [ -z "$namespace" ]; then
-            echo "[!!] Empty namespace tag, skipping"
+        if [ "$namespace" != "$TARGET_NAMESPACE" ]; then
             continue
         fi
         
