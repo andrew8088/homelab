@@ -54,10 +54,10 @@ spec:
           value: "/usr/lib/libmimalloc-secure.so.2"
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
             memory: "1Gi"
+            cpu: "200m"
+          limits:
+            memory: "3Gi"
             cpu: "1000m"
         livenessProbe:
           httpGet:
