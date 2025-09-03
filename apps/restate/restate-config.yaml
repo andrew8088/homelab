@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: restate-config
+  namespace: restate
+data:
+  restate.toml: |
+    # Development-focused Restate configuration
+    
+    [server]
+    # Ingress endpoint for your services to call
+    bind-address = "0.0.0.0:8080"
+    
+    [admin]
+    # Admin UI and REST API
+    bind-address = "0.0.0.0:9070"
+    
+    [storage]
+    # Use embedded storage for simplicity
+    path = "/data"
+    
+    # Development-friendly settings
+    [storage.rocksdb]
+    # More aggressive compression for storage efficiency
+    enable-statistics = true
+    
+    [metadata-store]
+    # Use embedded SQLite for metadata - simpler for dev
+    type = "sqlite"
+    path = "/data/metadata.db"
+    
+    [observability]
+    metrics-bind-address = "0.0.0.0:9071"
+    
+    [log]
+    level = "info"
+    format = "pretty"
+    
+    # Development tweaks
+    [worker]
+    # Lower resource usage for homelab
+    num-timers-in-memory-limit = 1024
+    
+    [bifrost]
+    # More frequent log compaction for development
+    default-provider = "local"
