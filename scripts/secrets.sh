@@ -6,7 +6,7 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-TARGET_NAMESPACE="$1"
+NAMESPACE="$1"
 
 iso_to_epoch() {
     date -d "$1" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "$1" +%s 2>/dev/null
@@ -17,12 +17,12 @@ needs_update() {
     local namespace=$2
     local op_updated=$3
     
-    if ! kubectl get secret "$title" -n "$namespace" >/dev/null 2>&1; then
+    if ! kubectl get secret "$title" -n "$NAMESPACE" >/dev/null 2>&1; then
         echo "ℹ️ does not exist, creating"
         return 0
     fi
     
-    k8s_created=$(kubectl get secret "$title" -n "$namespace" -o jsonpath='{.metadata.creationTimestamp}' 2>/dev/null)
+    k8s_created=$(kubectl get secret "$title" -n "$NAMESPACE" -o jsonpath='{.metadata.creationTimestamp}' 2>/dev/null)
     
     if [ -z "$k8s_created" ]; then
         echo "‼️ could not get creation time, recreating"
@@ -46,7 +46,7 @@ needs_update() {
     fi
 }
 
-op item list --vault homelab --tags "$TARGET_NAMESPACE" | sed '1d' | awk '{print $2}' | while read title; do
+op item list --vault homelab --tags "$NAMESPACE" | sed '1d' | awk '{print $2}' | while read title; do
     echo "🔑 $title"
     
     content=$(op item get "$title" --vault homelab --format json)
@@ -63,7 +63,7 @@ op item list --vault homelab --tags "$TARGET_NAMESPACE" | sed '1d' | awk '{print
         op_updated="1970-01-01T00:00:00Z"
     fi
         
-    if needs_update "$title" "$TARGET_NAMESPACE" "$op_updated"; then
+    if needs_update "$title" "$NAMESPACE" "$op_updated"; then
         literals=$(echo "$content" | jq -r '.fields[] | select(.id!="notesPlain") | "--from-literal=\(.label)=\(.value)"' | tr '\n' ' ')
         
         if [ -z "$literals" ]; then
@@ -71,10 +71,10 @@ op item list --vault homelab --tags "$TARGET_NAMESPACE" | sed '1d' | awk '{print
             continue
         fi
         
-        if eval "kubectl create secret generic \"$title\" --namespace=\"$namespace\" $literals --dry-run=client -o yaml | kubectl apply -f -"; then
-            echo "✅ successfully applied secret $title in namespace $namespace"
+        if eval "kubectl create secret generic \"$title\" --namespace=\"$NAMESPACE\" $literals --dry-run=client -o yaml | kubectl apply -f -"; then
+            echo "✅ successfully applied secret $title in namespace $NAMESPACE"
         else
-            echo "‼️ failed to apply secret $title in namespace $namespace"
+            echo "‼️ failed to apply secret $title in namespace $NAMESPACE"
         fi
     fi
 done
