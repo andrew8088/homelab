@@ -9,3 +9,5 @@ resources:
   - copyparty-config.yaml
   - deployment.yaml
   - service.yaml
+  - samba-deployment.yaml
+  - samba-service.yaml

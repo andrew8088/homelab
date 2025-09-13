@@ -22,20 +22,13 @@ spec:
         args:
         - "-a"
         - "andrew:$(COPYPARTY_PASSWORD)"
-        - "--xff-hdr"
-        - "x-forwarded-for"
-        - "--rproxy"
-        - "1"
+        - "--log-badxml"
         ports:
         - containerPort: 3923
           name: http
         volumeMounts:
-        - name: nextcloud-userdata
+        - name: files
           mountPath: /w
-        - name: cluster-backup
-          mountPath: /backup
-        - name: cluster-external
-          mountPath: /external
         - name: config
           mountPath: /cfg
         - name: copyparty-config
@@ -118,17 +111,9 @@ spec:
           runAsGroup: 1000
 
       volumes:
-      - name: nextcloud-userdata
+      - name: files
         hostPath:
-          path: /mnt/primary/k3s-storage/nextcloud-userdata/andrew/files
-          type: Directory
-      - name: cluster-backup
-        hostPath:
-          path: /mnt/backup
-          type: Directory
-      - name: cluster-external
-        hostPath:
-          path: /mnt/external
+          path: /mnt/primary/k3s-storage/files
           type: Directory
       - name: config
         hostPath:

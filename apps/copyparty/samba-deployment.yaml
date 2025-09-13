@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: samba
+  namespace: copyparty
+  labels:
+    app: samba
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samba
+  template:
+    metadata:
+      labels:
+        app: samba
+    spec:
+      containers:
+      - name: samba
+        image: dperson/samba:latest
+        args:
+        - "-u"
+        - "andrew;$(SAMBA_PASSWORD)"
+        - "-s"
+        - "files;/files;yes;no;no;andrew"
+        - "-p"
+        ports:
+        - containerPort: 139
+          name: netbios
+        - containerPort: 445
+          name: smb
+        volumeMounts:
+        - name: files
+          mountPath: /files
+        env:
+        - name: SAMBA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: copyparty-secrets
+              key: password
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          privileged: true
+      volumes:
+      - name: files
+        hostPath:
+          path: /mnt/primary/k3s-storage/files
+          type: Directory

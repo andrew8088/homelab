@@ -7,6 +7,7 @@ data:
   config.conf: |
     [global]
       p: 3923
+      rproxy: 1
       
       e2dsa
       e2ts
@@ -21,14 +22,4 @@ data:
     [/home]
       /w
       accs: 
-        rwda: andrew
-
-    [/backup]
-      /backup
-      accs: 
-        rwda: andrew
-
-    [/external]
-      /external
-      accs: 
-        rwda: andrew
+        A: andrew
