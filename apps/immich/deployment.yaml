@@ -1,0 +1,178 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich
+  namespace: immich
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immich
+  template:
+    metadata:
+      labels:
+        app: immich
+    spec:
+      serviceAccountName: tailscale
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:16
+        command: ['sh', '-c']
+        args:
+        - |
+          until pg_isready -h postgres -p 5432 -U immich; do
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: immich-secrets
+              key: DB_PASSWORD
+      - name: wait-for-redis
+        image: docker.io/valkey/valkey:8-bookworm
+        command: ['sh', '-c']
+        args:
+        - |
+          until valkey-cli -h redis ping; do
+            echo "Waiting for redis..."
+            sleep 2
+          done
+      containers:
+      - name: immich-server
+        image: ghcr.io/immich-app/immich-server:release
+        ports:
+        - containerPort: 2283
+        env:
+        - name: DB_HOSTNAME
+          value: "postgres"
+        - name: DB_USERNAME
+          value: "immich"
+        - name: DB_DATABASE_NAME
+          value: "immich"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: immich-secrets
+              key: DB_PASSWORD
+        - name: REDIS_HOSTNAME
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: immich-secrets
+              key: JWT_SECRET
+        - name: IMMICH_MACHINE_LEARNING_URL
+          value: "http://127.0.0.1:3003"
+        volumeMounts:
+        - name: upload-data
+          mountPath: /usr/src/app/upload
+        - name: library-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1500m"
+        livenessProbe:
+          httpGet:
+            path: /api/server/ping
+            port: 2283
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/server/ping
+            port: 2283
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+      - name: immich-machine-learning
+        image: ghcr.io/immich-app/immich-machine-learning:release
+        ports:
+        - containerPort: 3003
+        volumeMounts:
+        - name: model-cache
+          mountPath: /cache
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 3003
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: 3003
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+      - name: tailscale
+        image: tailscale/tailscale:latest
+        env:
+        - name: TS_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              name: tailscale-auth
+              key: TS_AUTHKEY
+        - name: TS_HOSTNAME
+          value: "immich"
+        - name: TS_SERVE_CONFIG
+          value: "/config/serve.json"
+        - name: TS_STATE_DIR
+          value: "/tmp"
+        - name: TS_USERSPACE
+          value: "true"
+        - name: TS_KUBE_SECRET
+          value: "tailscale-state"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        volumeMounts:
+        - name: serve-config
+          mountPath: /config
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: upload-data
+        hostPath:
+          path: /mnt/primary/k3s-storage/immich/upload
+          type: DirectoryOrCreate
+      - name: library-data
+        hostPath:
+          path: /mnt/primary/k3s-storage/immich/library
+          type: DirectoryOrCreate
+      - name: model-cache
+        hostPath:
+          path: /mnt/primary/k3s-storage/immich/ml-cache
+          type: DirectoryOrCreate
+      - name: serve-config
+        configMap:
+          name: tailscale-serve-config
