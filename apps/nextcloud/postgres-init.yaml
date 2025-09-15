@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-init
-  namespace: nextcloud
-data:
-  01-init.sql: |
-    -- Make nextcloud user a superuser
-    ALTER USER nextcloud SUPERUSER;
