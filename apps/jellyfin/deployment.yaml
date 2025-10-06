@@ -36,7 +36,7 @@ spec:
             cpu: "250m"
           limits:
             memory: "2Gi"
-            cpu: "1000m"
+            cpu: "500m"
         securityContext:
           runAsUser: 1000
           runAsGroup: 1000
@@ -87,13 +87,14 @@ spec:
 
       volumes:
       - name: jellyfin-config
-        persistentVolumeClaim:
-          claimName: jellyfin-config
+        hostPath:
+          path: /mnt/primary/k3s-storage/jellyfin-config
+          type: DirectoryOrCreate
       - name: jellyfin-cache
         emptyDir: {}
       - name: media-storage
         hostPath:
-          path: /mnt/primary/k3s-storage/nextcloud-userdata/andrew/files/media
+          path: /mnt/primary/k3s-storage/files/media
           type: Directory
       - name: serve-config
         configMap:

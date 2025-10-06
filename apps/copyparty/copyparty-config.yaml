@@ -23,3 +23,9 @@ data:
       /w
       accs: 
         A: andrew
+
+    [/audiobooks]
+      /audiobooks
+      accs: 
+        A: andrew
+        r: *
