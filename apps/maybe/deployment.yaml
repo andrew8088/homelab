@@ -42,8 +42,12 @@ spec:
           value: "false"
         - name: RAILS_ASSUME_SSL
           value: "false"
-        - name: GOOD_JOB_EXECUTION_MODE
-          value: "async"
+        - name: RAILS_ENV
+          value: "production"
+        - name: WEB_CONCURRENCY
+          value: "2"
+        - name: RAILS_MAX_THREADS
+          value: "5"
         - name: SECRET_KEY_BASE
           valueFrom:
             secretKeyRef:
