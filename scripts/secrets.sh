@@ -64,14 +64,18 @@ op item list --vault homelab --tags "$NAMESPACE" | sed '1d' | awk '{print $2}' |
     fi
         
     if needs_update "$title" "$NAMESPACE" "$op_updated"; then
-        literals=$(echo "$content" | jq -r '.fields[] | select(.id!="notesPlain") | "--from-literal=\(.label)=\(.value)"' | tr '\n' ' ')
-        
-        if [ -z "$literals" ]; then
+        # Build secret data as JSON with proper escaping
+        secret_data=$(echo "$content" | jq -r '[.fields[] | select(.id!="notesPlain") | {(.label): .value}] | add')
+
+        if [ -z "$secret_data" ] || [ "$secret_data" = "null" ]; then
             echo "‼️ no fields, skipping"
             continue
         fi
-        
-        if eval "kubectl create secret generic \"$title\" --namespace=\"$NAMESPACE\" $literals --dry-run=client -o yaml | kubectl apply -f -"; then
+
+        # Create secret from JSON (avoids shell expansion issues)
+        if echo "$secret_data" | jq -r 'to_entries | map("--from-literal=\(.key)=\(.value)") | @sh' | \
+           xargs kubectl create secret generic "$title" --namespace="$NAMESPACE" --dry-run=client -o yaml | \
+           kubectl apply -f -; then
             echo "✅ successfully applied secret $title in namespace $NAMESPACE"
         else
             echo "‼️ failed to apply secret $title in namespace $NAMESPACE"
