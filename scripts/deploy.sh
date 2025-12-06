@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <namespace>"
@@ -14,4 +14,5 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 kubectl config use-context $HOMELAB_CONTEXT
 kubectl apply -f "$REPO_ROOT/apps/$NAMESPACE/namespace.yaml"
 $SCRIPT_DIR/secrets.sh "$NAMESPACE"
+$SCRIPT_DIR/tailscale-authkey.sh "$NAMESPACE"
 kubectl apply -k "$REPO_ROOT/apps/$NAMESPACE"
