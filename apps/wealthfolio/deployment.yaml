@@ -70,8 +70,6 @@ spec:
           value: "wealthfolio"
         - name: TS_SERVE_CONFIG
           value: "/config/serve.json"
-        - name: TS_STATE_DIR
-          value: "/tmp"
         - name: TS_USERSPACE
           value: "true"
         - name: TS_KUBE_SECRET
