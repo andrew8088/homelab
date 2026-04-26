@@ -159,7 +159,7 @@ kubectl apply -k apps/<namespace>/
 
 ## Legacy Sidecar Pattern (deprecated)
 
-A handful of apps (`copyparty`, `freshrss`, `homeassistant`, `immich`, `jellyfin`, `linkwarden`, `wealthfolio`) still run an in-pod `tailscale` sidecar with a per-namespace `rbac.yaml`, `serve-config.yaml`, and `tailscale-state` secret. These will be migrated to the operator pattern over time. Until then, `scripts/tailscale-authkey.sh` and `scripts/tailscale-reset.sh` continue to support them, and `deploy.sh` auto-detects the legacy pattern by the presence of `rbac.yaml`.
+A handful of apps (`freshrss`, `homeassistant`, `jellyfin`) still run an in-pod `tailscale` sidecar with a per-namespace `rbac.yaml`, `serve-config.yaml`, and `tailscale-state` secret. These will be migrated to the operator pattern over time. Until then, `scripts/tailscale-authkey.sh` and `scripts/tailscale-reset.sh` continue to support them, and `deploy.sh` auto-detects the legacy pattern by the presence of `rbac.yaml`.
 
 ## Best Practices
 

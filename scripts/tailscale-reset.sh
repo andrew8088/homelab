@@ -11,14 +11,9 @@ APPS_DIR="$(dirname "$SCRIPT_DIR")/apps"
 
 # Apps that use Tailscale sidecars
 TAILSCALE_APPS=(
-    copyparty
     freshrss
     homeassistant
-    immich
     jellyfin
-    linkwarden
-    maybe
-    wealthfolio
 )
 
 SYNC_SECRETS=false
