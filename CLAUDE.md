@@ -157,10 +157,6 @@ kubectl apply -k apps/<namespace>/
 
 - **`apps/maybe/`** — full-stack Rails app with Postgres, Redis, worker container, and Tailscale operator Ingress. Use as the template for new apps.
 
-## Legacy Sidecar Pattern (deprecated)
-
-A handful of apps (`freshrss`, `homeassistant`, `jellyfin`) still run an in-pod `tailscale` sidecar with a per-namespace `rbac.yaml`, `serve-config.yaml`, and `tailscale-state` secret. These will be migrated to the operator pattern over time. Until then, `scripts/tailscale-authkey.sh` and `scripts/tailscale-reset.sh` continue to support them, and `deploy.sh` auto-detects the legacy pattern by the presence of `rbac.yaml`.
-
 ## Best Practices
 
 1. Always use resource limits.

@@ -13,7 +13,6 @@ spec:
       labels:
         app: jellyfin
     spec:
-      serviceAccountName: tailscale
       containers:
       - name: jellyfin
         image: jellyfin/jellyfin:latest
@@ -42,47 +41,6 @@ spec:
           runAsGroup: 1000
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false
-
-      - name: tailscale
-        image: tailscale/tailscale:latest
-        env:
-        - name: TS_AUTHKEY
-          valueFrom:
-            secretKeyRef:
-              name: tailscale-auth
-              key: TS_AUTHKEY
-        - name: TS_HOSTNAME
-          value: "jellyfin"
-        - name: TS_SERVE_CONFIG
-          value: "/config/serve.json"
-        - name: TS_USERSPACE
-          value: "true"
-        - name: TS_KUBE_SECRET
-          value: "tailscale-state"
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_UID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.uid
-        volumeMounts:
-        - name: serve-config
-          mountPath: /config
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "50m"
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
-        securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
-
       volumes:
       - name: jellyfin-config
         hostPath:
@@ -94,6 +52,3 @@ spec:
         hostPath:
           path: /mnt/primary/k3s-storage/files/media
           type: Directory
-      - name: serve-config
-        configMap:
-          name: jellyfin-serve-config
