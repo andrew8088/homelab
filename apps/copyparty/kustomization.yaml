@@ -3,11 +3,9 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - secrets.yaml
-  - rbac.yaml
-  - serve-config.yaml
   - copyparty-config.yaml
   - deployment.yaml
   - service.yaml
+  - ingress.yaml
   - samba-deployment.yaml
   - samba-service.yaml

@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: maybe
+  namespace: maybe
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: maybe
+      port:
+        number: 80
+  tls:
+  - hosts:
+    - maybe

@@ -3,9 +3,8 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - rbac.yaml
-  - secrets.yaml
-  - serve-config.yaml
   - redis.yaml
   - postgres.yaml
   - deployment.yaml
+  - service.yaml
+  - ingress.yaml

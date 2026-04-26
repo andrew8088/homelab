@@ -13,7 +13,6 @@ spec:
       labels:
         app: maybe
     spec:
-      serviceAccountName: tailscale
       initContainers:
       - name: wait-for-postgres
         image: postgres:16
@@ -121,48 +120,8 @@ spec:
           limits:
             memory: "1024Mi"
             cpu: "600m"
-      - name: tailscale
-        image: tailscale/tailscale:latest
-        env:
-        - name: TS_AUTHKEY
-          valueFrom:
-            secretKeyRef:
-              name: tailscale-auth
-              key: TS_AUTHKEY
-        - name: TS_HOSTNAME
-          value: "maybe"
-        - name: TS_SERVE_CONFIG
-          value: "/config/serve.json"
-        - name: TS_USERSPACE
-          value: "true"
-        - name: TS_KUBE_SECRET
-          value: "tailscale-state"
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_UID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.uid
-        volumeMounts:
-        - name: serve-config
-          mountPath: /config
-        securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "50m"
-          limits:
-            memory: "128Mi"
-            cpu: "100m"
       volumes:
       - name: app-storage
         hostPath:
           path: /mnt/primary/k3s-storage/maybe-data
           type: DirectoryOrCreate
-      - name: serve-config
-        configMap:
-          name: tailscale-serve-config

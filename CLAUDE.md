@@ -6,14 +6,60 @@ This document outlines the established patterns and practices for deploying appl
 
 ```
 homelab/
-├── apps/                    # Individual application deployments
-│   ├── maybe/              # Reference implementation
-│   ├── copyparty/          # Reference implementation
-│   └── [other-apps]/
-└── scripts/               # Deployment and management scripts
-    ├── deploy.sh          # Main deployment script
-    └── secrets.sh         # 1Password secrets sync
+├── apps/
+│   ├── tailscale-operator/  # Cluster-wide Tailscale operator install
+│   ├── maybe/               # Reference implementation (operator pattern)
+│   └── [other-apps]/        # Some still on the legacy sidecar pattern
+└── scripts/
+    ├── deploy.sh            # Main deployment script
+    └── secrets.sh           # 1Password secrets sync
 ```
+
+## Tailscale: Operator Pattern
+
+External access for every app is provided by the [Tailscale Kubernetes Operator](https://tailscale.com/kb/1236/kubernetes-operator), installed once cluster-wide. Each app gets its own machine on the tailnet by declaring an Ingress (for HTTPS) or a Service (for raw TCP) with the `tailscale` class — the operator spins up a proxy pod in the `tailscale` namespace that joins the tailnet with the app's hostname.
+
+Install or upgrade the operator with `apps/tailscale-operator/install.sh`. The script's header documents the one-time tailnet ACL and 1Password OAuth setup.
+
+### Exposing an app over HTTPS
+
+Add a ClusterIP `Service` and an `Ingress` with `ingressClassName: tailscale`. The hostname comes from the Ingress `metadata.name` (override with the `tailscale.com/hostname` annotation):
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: maybe
+  namespace: maybe
+spec:
+  selector:
+    app: maybe
+  ports:
+  - port: 80
+    targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: maybe
+  namespace: maybe
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: maybe
+      port:
+        number: 80
+  tls:
+  - hosts:
+    - maybe
+```
+
+This makes the app reachable at `https://maybe.<tailnet>.ts.net` with a Tailscale-issued certificate.
+
+### Exposing an app over raw TCP
+
+Use a `Service` of type `LoadBalancer` with `loadBalancerClass: tailscale` and a `tailscale.com/hostname` annotation.
 
 ## Standard Application Structure
 
@@ -21,21 +67,19 @@ Each application in `apps/` follows this structure:
 
 ### Required Files
 
-1. **`kustomization.yaml`** - Lists all Kubernetes resources for the app
+1. **`kustomization.yaml`**
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
   - namespace.yaml
-  - rbac.yaml
-  - secrets.yaml
-  - serve-config.yaml
   - deployment.yaml
-  # Add optional components as needed
+  - service.yaml
+  - ingress.yaml
 ```
 
-2. **`namespace.yaml`** - Dedicated namespace for isolation
+2. **`namespace.yaml`** — dedicated namespace
 ```yaml
 apiVersion: v1
 kind: Namespace
@@ -43,196 +87,25 @@ metadata:
   name: app-name
 ```
 
-3. **`deployment.yaml`** - Main application deployment following the multi-container pattern
+3. **`deployment.yaml`** — application pods. No tailscale sidecar, no `serviceAccountName: tailscale`.
 
-4. **`rbac.yaml`** - ServiceAccount, Role, and RoleBinding for Tailscale sidecar
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: tailscale
-  namespace: app-name
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: app-name
-  name: tailscale
-rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["create", "get", "list", "patch", "update", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: tailscale
-  namespace: app-name
-subjects:
-- kind: ServiceAccount
-  name: tailscale
-  namespace: app-name
-roleRef:
-  kind: Role
-  name: tailscale
-  apiGroup: rbac.authorization.k8s.io
-```
+4. **`service.yaml`** — ClusterIP service the Ingress targets.
 
-5. **`secrets.yaml`** - Most actual secrets are managed via 1Password, but tailscale needs the `tailscale-state` secret initialized before it starts up.
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: tailscale-state
-  namespace: app-name
-```
-
-6. **`serve-config.yaml`** - Tailscale serve configuration for external access
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: tailscale-serve-config
-  namespace: app-name
-data:
-  serve.json: |
-    {
-      "TCP": {
-        "443": {
-          "HTTPS": true
-        }
-      },
-      "Web": {
-        "app-name.twin-barley.ts.net:443": {
-          "Handlers": {
-            "/": {
-              "Proxy": "http://127.0.0.1:PORT"
-            }
-          }
-        }
-      }
-    }
-```
+5. **`ingress.yaml`** — Tailscale Ingress (see template above).
 
 ### Optional Components
 
-- **`postgres.yaml`** / **`redis.yaml`** - Database dependencies as separate deployments with services
-- **`pvc.yaml`** - Persistent Volume Claims (prefer hostPath volumes)
-- **`service.yaml`** - Internal Kubernetes services for pod-to-pod communication
-- **`*-config.yaml`** - Application-specific ConfigMaps
-- **Additional services** - Like Samba for file sharing (see copyparty example)
+- **`postgres.yaml`** / **`redis.yaml`** — database dependencies
+- **`pvc.yaml`** — Persistent Volume Claims (prefer hostPath volumes)
+- **`*-config.yaml`** — application-specific ConfigMaps
 
 ## Deployment Patterns
 
-### Multi-Container Architecture
-
-Every application deployment follows this pattern:
-
-```yaml
-spec:
-  template:
-    spec:
-      serviceAccountName: tailscale
-      initContainers:
-      - name: wait-for-dependencies
-        # Wait for databases/services to be ready
-      containers:
-      - name: main-app
-        # Primary application container
-      - name: worker  # Optional
-        # Background job processor (if needed)
-      - name: tailscale
-        # Secure networking sidecar (required)
-```
-
 ### Container Standards
 
-1. **Resource Constraints** - All containers must have requests and limits:
-```yaml
-resources:
-  requests:
-    memory: "256Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
-```
-
-2. **Health Checks** - Include both liveness and readiness probes:
-```yaml
-livenessProbe:
-  httpGet:
-    path: /health
-    port: 8080
-  initialDelaySeconds: 30
-  periodSeconds: 10
-readinessProbe:
-  httpGet:
-    path: /ready
-    port: 8080
-  initialDelaySeconds: 5
-  periodSeconds: 5
-```
-
-3. **Init Containers** - Use for dependency waiting:
-```yaml
-initContainers:
-- name: wait-for-postgres
-  image: postgres:16
-  command: ['sh', '-c']
-  args:
-  - |
-    until pg_isready -h postgres -p 5432 -U user; do
-      echo "Waiting for postgres..."
-      sleep 2
-    done
-```
-
-### Tailscale Sidecar Pattern
-
-Every application includes a Tailscale sidecar for secure external access:
-
-```yaml
-- name: tailscale
-  image: tailscale/tailscale:latest
-  env:
-  - name: TS_AUTHKEY
-    valueFrom:
-      secretKeyRef:
-        name: tailscale-auth
-        key: TS_AUTHKEY
-  - name: TS_HOSTNAME
-    value: "app-name"
-  - name: TS_SERVE_CONFIG
-    value: "/config/serve.json"
-  - name: TS_STATE_DIR
-    value: /tmp
-  - name: TS_USERSPACE
-    value: "true"
-  - name: TS_KUBE_SECRET
-    value: "tailscale-state"
-  - name: POD_NAME
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.name
-  - name: POD_UID
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.uid
-  volumeMounts:
-  - name: serve-config
-    mountPath: /config
-  securityContext:
-    runAsUser: 1000
-    runAsGroup: 1000
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "50m"
-    limits:
-      memory: "128Mi"
-      cpu: "100m"
-```
+1. **Resource Constraints** — all containers must have requests and limits.
+2. **Health Checks** — include both liveness and readiness probes.
+3. **Init Containers** — use for dependency waiting (e.g. `pg_isready` loop).
 
 ### Storage Pattern
 
@@ -246,107 +119,53 @@ volumes:
     type: DirectoryOrCreate
 ```
 
-Mount in containers:
-```yaml
-volumeMounts:
-- name: app-data
-  mountPath: /data
-```
-
 ### Database Dependencies
 
-For apps requiring databases, create separate deployments with services:
-
-1. **Postgres Example** (see `apps/maybe/postgres.yaml`)
-2. **Redis Example** (see `apps/maybe/redis.yaml`)
-
-Each database should have:
-- Dedicated deployment with resource limits
-- Persistent hostPath volume
-- Health checks (liveness/readiness probes)
-- ClusterIP service for internal access
-- Shared secrets with the main application
+For apps requiring databases, create separate deployments with services. Each database should have a deployment with resource limits, a persistent hostPath volume, health checks, and a ClusterIP service. See `apps/maybe/postgres.yaml` and `apps/maybe/redis.yaml`.
 
 ## Secret Management
 
 Secrets are managed via 1Password CLI integration:
 
-1. **Store secrets in 1Password** with vault `homelab`
-2. **Tag secrets** with the target namespace name
-3. **Run sync script**: `./scripts/secrets.sh <namespace>`
-4. **Automatic sync** - Script compares timestamps and only updates when needed
+1. Store secrets in 1Password with vault `homelab`.
+2. Tag secrets with the target namespace name.
+3. Run `./scripts/secrets.sh <namespace>` (called automatically by `deploy.sh`).
+4. The script compares timestamps and only updates when the 1Password item is newer than the in-cluster secret.
 
-### Secret Naming Convention
-- Secret items in 1Password should match the Kubernetes secret name
-- Use descriptive field labels that become environment variable names
-- Common secrets:
-  - `tailscale-auth` (cluster-wide)
-  - `app-name-secrets` (app-specific credentials)
+Cluster-wide secrets:
+- `tailscale-operator-oauth` (1Password only) — operator OAuth client; consumed by `apps/tailscale-operator/install.sh`.
 
 ## Deployment Process
 
-### Application Deployment
 ```bash
-# Deploy single app
-kubectl apply -k apps/app-name/
+# Deploy or update one app
+./scripts/deploy.sh <namespace>
 
-# Deploy all apps (via script)
-./scripts/deploy.sh
-```
-
-### Secret Deployment
-```bash
-# Sync secrets for specific app
-./scripts/secrets.sh app-name
+# Or deploy without re-syncing secrets / context switch
+kubectl apply -k apps/<namespace>/
 ```
 
 ## Creating New Applications
 
-### 1. Create App Directory
-```bash
-mkdir apps/new-app
-cd apps/new-app
-```
+1. `mkdir apps/new-app`
+2. Copy `namespace.yaml`, `deployment.yaml`, `service.yaml`, `ingress.yaml`, `kustomization.yaml` from `apps/maybe/` and adjust names, ports, image, and the Ingress hostname.
+3. Add any database deployments, ConfigMaps, or PVCs the app needs.
+4. Add app secrets to 1Password (vault `homelab`, tagged with the namespace name).
+5. `./scripts/deploy.sh new-app`
 
-### 2. Create Required Files
-Copy and modify files from reference apps (`maybe` or `copyparty`):
+## Reference Application
 
-1. Start with `kustomization.yaml`
-2. Create `namespace.yaml` with your app name
-3. Set up `rbac.yaml` (usually identical)
-4. Create `secrets.yaml` placeholder
-5. Configure `serve-config.yaml` with correct hostname and port
-6. Build `deployment.yaml` following the multi-container pattern
+- **`apps/maybe/`** — full-stack Rails app with Postgres, Redis, worker container, and Tailscale operator Ingress. Use as the template for new apps.
 
-### 3. Add Optional Components
-- Database deployments if needed
-- Additional services (Samba, etc.)
-- Application-specific ConfigMaps
+## Legacy Sidecar Pattern (deprecated)
 
-### 4. Configure Secrets
-1. Add secrets to 1Password vault `homelab`
-2. Tag with namespace name
-3. Run `./scripts/secrets.sh new-app`
-
-### 5. Deploy
-```bash
-kubectl apply -k apps/new-app/
-```
-
-## Reference Applications
-
-- **`apps/maybe/`** - Full-stack Rails app with Postgres, Redis, and worker containers
-- **`apps/copyparty/`** - File server with Samba integration and custom configuration
-
-These serve as the best examples of the established patterns and should be referenced when creating new applications.
+A handful of apps (`copyparty`, `freshrss`, `homeassistant`, `immich`, `jellyfin`, `linkwarden`, `wealthfolio`) still run an in-pod `tailscale` sidecar with a per-namespace `rbac.yaml`, `serve-config.yaml`, and `tailscale-state` secret. These will be migrated to the operator pattern over time. Until then, `scripts/tailscale-authkey.sh` and `scripts/tailscale-reset.sh` continue to support them, and `deploy.sh` auto-detects the legacy pattern by the presence of `rbac.yaml`.
 
 ## Best Practices
 
-1. **Always use resource limits** - Prevents resource starvation
-2. **Include health checks** - Enables proper rolling updates and self-healing
-3. **Use init containers** - For dependency waiting and initialization
-4. **Follow naming conventions** - Consistent naming across resources
-5. **Isolate with namespaces** - Each app gets its own namespace
-6. **Secure with Tailscale** - No direct external exposure, always via Tailscale
-7. **Document configuration** - Use ConfigMaps for complex app config
-8. **Test deployments** - Verify health checks and connectivity after deployment
+1. Always use resource limits.
+2. Include health checks.
+3. Use init containers for dependency waiting.
+4. One namespace per app.
+5. Expose externally only via the Tailscale operator — never `Service type=NodePort` or `type=LoadBalancer` without the `tailscale` class.
+6. Document complex app config in ConfigMaps.
