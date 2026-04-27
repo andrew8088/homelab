@@ -8,7 +8,8 @@ data:
     [global]
       p: 3923
       rproxy: 1
-      
+      xff-src: lan
+
       e2dsa
       e2ts
       z
