@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lira
+  namespace: lira
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: lira
+      port:
+        number: 80
+  tls:
+  - hosts:
+    - lira
