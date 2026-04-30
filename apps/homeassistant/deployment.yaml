@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homeassistant
+  namespace: homeassistant
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: homeassistant
+  template:
+    metadata:
+      labels:
+        app: homeassistant
+    spec:
+      containers:
+      - name: homeassistant
+        image: ghcr.io/home-assistant/home-assistant:stable
+        ports:
+        - containerPort: 8123
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: configuration
+          mountPath: /config/configuration.yaml
+          subPath: configuration.yaml
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8123
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8123
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/primary/k3s-storage/homeassistant-config
+          type: DirectoryOrCreate
+      - name: configuration
+        configMap:
+          name: homeassistant-config
