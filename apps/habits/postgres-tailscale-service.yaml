@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-tailscale
+  namespace: habits
+  annotations:
+    tailscale.com/hostname: habits-db
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432

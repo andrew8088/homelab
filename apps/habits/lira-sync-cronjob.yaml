@@ -1,0 +1,94 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: lira-sync
+  namespace: habits
+spec:
+  schedule: "0 4 * * *"
+  timeZone: "America/Los_Angeles"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+          - name: snapshot
+            image: alpine:3.19
+            command: ['sh', '-c']
+            args:
+            - |
+              set -eu
+              apk add --no-cache sqlite >/dev/null
+              echo "Snapshotting /lira-data/lira.sqlite -> /tmp/raw.sqlite"
+              sqlite3 /lira-data/lira.sqlite ".backup /tmp/raw.sqlite"
+              echo "Dumping schema+data and stripping STRICT (pgloader's sqlite is too old)"
+              sqlite3 /tmp/raw.sqlite ".dump" \
+                | sed -E 's/\)[[:space:]]*STRICT[[:space:]]*(;|,)/)\1/g; s/,[[:space:]]*STRICT[[:space:]]*(;|,)/\1/g' \
+                > /tmp/dump.sql
+              sqlite3 /snapshot/lira.sqlite < /tmp/dump.sql
+              ls -la /snapshot
+            volumeMounts:
+            - name: lira-data
+              mountPath: /lira-data
+              readOnly: true
+            - name: snapshot
+              mountPath: /snapshot
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "256Mi"
+                cpu: "500m"
+          containers:
+          - name: pgloader
+            image: dimitri/pgloader:latest
+            env:
+            - name: HABITS_OWNER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: habits-secrets
+                  key: HABITS_OWNER_PASSWORD
+            command: ['bash', '-c']
+            args:
+            - |
+              set -euo pipefail
+              cat > /tmp/lira.load <<EOF
+              LOAD DATABASE
+                FROM     sqlite:///snapshot/lira.sqlite
+                INTO     postgresql://habits_owner:${HABITS_OWNER_PASSWORD}@postgres.habits.svc.cluster.local:5432/habits
+
+              WITH      include drop,
+                        create tables,
+                        create indexes,
+                        reset sequences,
+                        downcase identifiers
+
+              SET       work_mem to '32MB',
+                        maintenance_work_mem to '256MB'
+
+              ALTER SCHEMA 'main' RENAME TO 'lira'
+              ;
+              EOF
+              pgloader --on-error-stop --client-min-messages warning /tmp/lira.load
+            volumeMounts:
+            - name: snapshot
+              mountPath: /snapshot
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          volumes:
+          - name: lira-data
+            hostPath:
+              path: /mnt/primary/k3s-storage/lira-data
+              type: Directory
+          - name: snapshot
+            emptyDir: {}

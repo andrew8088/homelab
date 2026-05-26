@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase
+  namespace: habits
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase
+  template:
+    metadata:
+      labels:
+        app: metabase
+    spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:16
+        command: ['sh', '-c']
+        args:
+        - |
+          until pg_isready -h postgres -p 5432 -U postgres; do
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+      containers:
+      - name: metabase
+        image: metabase/metabase:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MB_DB_TYPE
+          value: "postgres"
+        - name: MB_DB_DBNAME
+          value: "mbapp"
+        - name: MB_DB_HOST
+          value: "postgres"
+        - name: MB_DB_PORT
+          value: "5432"
+        - name: MB_DB_USER
+          value: "mbapp_user"
+        - name: MB_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: habits-secrets
+              key: MBAPP_PASSWORD
+        - name: MB_ENCRYPTION_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: habits-secrets
+              key: MB_ENCRYPTION_SECRET_KEY
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 180
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12

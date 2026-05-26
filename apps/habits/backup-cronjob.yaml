@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: habits-backup
+  namespace: habits
+spec:
+  schedule: "0 3 * * *"
+  timeZone: "America/Los_Angeles"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: pg-dump
+            image: postgres:16
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: habits-secrets
+                  key: POSTGRES_PASSWORD
+            command: ['bash', '-c']
+            args:
+            - |
+              set -euo pipefail
+              ts=$(date -u +%Y%m%d-%H%M%S)
+              out="/backup/habits-${ts}.sql.gz"
+              echo "Dumping to $out"
+              pg_dumpall -h postgres -U postgres | gzip -9 > "$out"
+              echo "Pruning backups older than 14 days"
+              find /backup -maxdepth 1 -name 'habits-*.sql.gz' -type f -mtime +14 -delete
+              echo "Done."
+            volumeMounts:
+            - name: backup
+              mountPath: /backup
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          volumes:
+          - name: backup
+            hostPath:
+              path: /mnt/primary/k3s-storage/files/backups/habits-postgres
+              type: DirectoryOrCreate
