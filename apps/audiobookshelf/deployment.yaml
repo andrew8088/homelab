@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audiobookshelf
+  namespace: audiobookshelf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audiobookshelf
+  template:
+    metadata:
+      labels:
+        app: audiobookshelf
+    spec:
+      containers:
+      - name: audiobookshelf
+        image: ghcr.io/advplyr/audiobookshelf:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: metadata
+          mountPath: /metadata
+        - name: audiobooks
+          mountPath: /audiobooks
+        livenessProbe:
+          httpGet:
+            path: /healthcheck
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /healthcheck
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: config
+        hostPath:
+          path: /mnt/primary/k3s-storage/audiobookshelf-config
+          type: DirectoryOrCreate
+      - name: metadata
+        hostPath:
+          path: /mnt/primary/k3s-storage/audiobookshelf-metadata
+          type: DirectoryOrCreate
+      - name: audiobooks
+        hostPath:
+          path: /mnt/primary/k3s-storage/audiobooks
+          type: Directory
