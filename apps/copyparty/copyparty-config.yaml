@@ -27,6 +27,12 @@ data:
 
     [/audiobooks]
       /audiobooks
-      accs: 
+      accs:
+        A: andrew
+        r: *
+
+    [/ebooks]
+      /ebooks
+      accs:
         A: andrew
         r: *

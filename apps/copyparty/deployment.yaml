@@ -30,6 +30,8 @@ spec:
           mountPath: /w
         - name: audiobooks
           mountPath: /audiobooks
+        - name: ebooks
+          mountPath: /ebooks
         - name: config
           mountPath: /cfg
         - name: copyparty-config
@@ -76,6 +78,10 @@ spec:
         hostPath:
           path: /mnt/primary/k3s-storage/audiobooks
           type: Directory
+      - name: ebooks
+        hostPath:
+          path: /mnt/primary/k3s-storage/ebooks
+          type: DirectoryOrCreate
       - name: config
         hostPath:
           path: /mnt/primary/k3s-storage/copyparty-config
